@@ -60,7 +60,9 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 					return nil
 				}
 
-				index.Push(obj)
+				if err := index.Push(obj); err != nil {
+          return err       
+        }
 			}
 		}
 	}))
