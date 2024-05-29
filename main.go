@@ -65,7 +65,7 @@ func main() {
 	must(err)
 
 	scheme := kruntime.NewScheme()
-	v1beta1.SchemeBuilder.AddToScheme(scheme)
+	_ = v1beta1.SchemeBuilder.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 	factory := serializer.NewCodecFactory(scheme)
 	decoder := factory.UniversalDeserializer()
