@@ -5,20 +5,20 @@
 class Tfxunpack < Formula
   desc "Extract crossplane resources"
   homepage "https://github.com/DoodleScheduling/tfxunpack"
-  version "0.0.1"
+  version "0.0.2"
 
   on_macos do
     on_intel do
-      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.1/tfxunpack_0.0.1_darwin_amd64.tar.gz"
-      sha256 "ad0a0a6e0f41e79d6383b2456ac98566084d16f05ec154961a921e05ef2e49a8"
+      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.2/tfxunpack_0.0.2_darwin_amd64.tar.gz"
+      sha256 "92bd0a39b1412eef9a7d1fc77502fa0f79e3ccab967bb4e06890a786f1bffeed"
 
       def install
         bin.install "tfxunpack"
       end
     end
     on_arm do
-      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.1/tfxunpack_0.0.1_darwin_arm64.tar.gz"
-      sha256 "5b93b4342da731792ec21a203d7a4bcf9539c9c347424a84f4e549ea728bdfd7"
+      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.2/tfxunpack_0.0.2_darwin_arm64.tar.gz"
+      sha256 "42bf9d9d2e012fce9dbb94b0def5414ab479a375800d550e85bca789a0493661"
 
       def install
         bin.install "tfxunpack"
@@ -29,8 +29,8 @@ class Tfxunpack < Formula
   on_linux do
     on_intel do
       if Hardware::CPU.is_64_bit?
-        url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.1/tfxunpack_0.0.1_linux_amd64.tar.gz"
-        sha256 "5b394bdd1b5e03efd7b963f63b32c5118cc7c92b6c276fe85d699199c41301c7"
+        url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.2/tfxunpack_0.0.2_linux_amd64.tar.gz"
+        sha256 "18a58f18fbfa65277da4db39768b3b22164eb9e20f1b5be96d0bd5ee9aba6bc5"
 
         def install
           bin.install "tfxunpack"
@@ -39,8 +39,8 @@ class Tfxunpack < Formula
     end
     on_arm do
       if Hardware::CPU.is_64_bit?
-        url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.1/tfxunpack_0.0.1_linux_arm64.tar.gz"
-        sha256 "4906797b8b80dd68e8d9d8eb3f9e34d129b679ef4b459cb1ffbeb58b63b6410a"
+        url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.0.2/tfxunpack_0.0.2_linux_arm64.tar.gz"
+        sha256 "1f612cd406968dfd4a6e34887b9964b887fb78d9c36fc8c386b9a0215737b248"
 
         def install
           bin.install "tfxunpack"
