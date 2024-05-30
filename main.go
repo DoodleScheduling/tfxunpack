@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -76,7 +76,7 @@ func main() {
 	}
 
 	if _, err := os.Stat(out); err == nil {
-		must(errors.New("output directory does already exists"))
+		must(fmt.Errorf("output directory `%s` does already exists", out))
 	}
 
 	err = os.MkdirAll(out, 0740)

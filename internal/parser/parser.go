@@ -61,8 +61,8 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 				}
 
 				if err := index.Push(obj); err != nil {
-          return err       
-        }
+					return err
+				}
 			}
 		}
 	}))
@@ -80,12 +80,16 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 		}
 
 		pool.Push(worker.Task(func(ctx context.Context) error {
-			obj, _, err := p.Decoder.Decode(
+			obj, gvk, err := p.Decoder.Decode(
 				resourceYAML,
 				nil,
 				nil)
 			if err != nil {
 				return nil
+			}
+
+			if gvk.Group == v1beta1.Group && gvk.Kind == "ProviderConfig" {
+				accessor.SetNamespace(obj, "")
 			}
 
 			objects <- obj
@@ -124,7 +128,7 @@ func (p *Parser) exit(waiters ...worker.Waiter) {
 	for _, w := range waiters {
 		err := w.Wait()
 		if err != nil && !p.AllowFailure {
-			p.Logger.Error(err, "error occured")
+			p.Logger.Error(err, "error occurred")
 			os.Exit(1)
 		}
 	}
