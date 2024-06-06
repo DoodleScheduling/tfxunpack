@@ -3,7 +3,7 @@ module github.com/doodlescheduling/tfxunpack
 go 1.22
 
 require (
-	github.com/crossplane/crossplane-runtime v1.15.1
+	github.com/crossplane/crossplane-runtime v1.16.0
 	github.com/go-logr/logr v1.4.1
 	github.com/go-logr/zapr v1.3.0
 	github.com/sethvargo/go-envconfig v0.9.0
