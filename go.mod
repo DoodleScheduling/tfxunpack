@@ -9,7 +9,7 @@ require (
 	github.com/sethvargo/go-envconfig v0.9.0
 	github.com/spf13/pflag v1.0.5
 	github.com/upbound/provider-terraform v0.16.0
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 	k8s.io/api v0.29.4
 	k8s.io/apimachinery v0.29.4
 )
