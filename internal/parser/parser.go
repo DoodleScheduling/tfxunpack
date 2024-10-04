@@ -109,7 +109,7 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 			}
 
 			if gvk.Group == v1beta1.Group && gvk.Kind == "ProviderConfig" {
-				accessor.SetNamespace(obj, "")
+				_ = accessor.SetNamespace(obj, "")
 			}
 
 			objects <- obj
