@@ -1,3 +1,4 @@
+version: 2
 project_name: tfxunpack
 
 builds:
@@ -84,13 +85,13 @@ docker_manifests:
 brews:
 - ids:
   - tfxunpack
-  tap:
+  repository:
     owner: doodlescheduling
     name: tfxunpack
     token: "{{ .Env.GITHUB_TOKEN }}"
-  description: Extract crossplane resources
+  description: Build kustomize overlays with flux2 HelmRelease support
   homepage: https://github.com/DoodleScheduling/tfxunpack
-  folder: Formula
+  directory: Formula
   test: |
     system "#{bin}/tfxunpack -h" 
 
@@ -98,7 +99,6 @@ signs:
 - cmd: cosign
   certificate: "${artifact}.pem"
   env:
-  - GITHUB_TEOKN=$RUNNER_TOKEN
   - COSIGN_EXPERIMENTAL=1
   args:
   - sign-blob
