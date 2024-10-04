@@ -3,27 +3,24 @@ package parser
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
+	"github.com/alitto/pond"
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/doodlescheduling/tfxunpack/internal/worker"
 	"github.com/go-logr/logr"
 	"github.com/upbound/provider-terraform/apis/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
-)
-
-const (
-	tfMain        = "main.tf"
-	tfConfig      = "config.tf"
-	tfBackendFile = "backend.tf"
 )
 
 type Parser struct {
@@ -38,34 +35,57 @@ type Parser struct {
 func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	errs := make(chan error)
 
-	pool := worker.New(ctx, worker.PoolOptions{
-		Workers: p.Workers,
-	})
+	panicHandler := func(panic interface{}) {
+		errs <- fmt.Errorf("worker exits from a panic: %v\nStack trace: %s", panic, string(debug.Stack()))
+	}
 
-	outWriter := worker.New(ctx, worker.PoolOptions{
-		Workers: 1,
-	})
+	pool := pond.New(p.Workers, p.Workers, pond.Context(ctx), pond.PanicHandler(panicHandler))
+	outWriter := pond.New(1, 1, pond.Context(ctx), pond.PanicHandler(panicHandler))
 
 	objects := make(chan runtime.Object, p.Workers)
 	index := make(ResourceIndex)
 
-	outWriter.Push(worker.Task(func(ctx context.Context) error {
+	outWriter.Submit(func() {
 		for {
 			select {
 			case <-ctx.Done():
-				return nil
+				return
 			case obj, ok := <-objects:
 				if !ok {
-					return nil
+					return
 				}
 
 				if err := index.Push(obj); err != nil {
-					return err
+					errs <- err
+					return
 				}
 			}
 		}
-	}))
+	})
+
+	var lastErr error
+	defer func() {
+		if lastErr != nil && !p.AllowFailure {
+			fmt.Fprintln(os.Stderr, lastErr.Error())
+			os.Exit(1)
+		}
+	}()
+
+	go func() {
+		for err := range errs {
+			if err == nil {
+				continue
+			}
+
+			lastErr = err
+
+			if p.FailFast {
+				cancel()
+			}
+		}
+	}()
 
 	multidocReader := utilyaml.NewYAMLReader(bufio.NewReader(in))
 
@@ -79,13 +99,13 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 			return err
 		}
 
-		pool.Push(worker.Task(func(ctx context.Context) error {
+		pool.Submit(func() {
 			obj, gvk, err := p.Decoder.Decode(
 				resourceYAML,
 				nil,
 				nil)
 			if err != nil {
-				return nil
+				return
 			}
 
 			if gvk.Group == v1beta1.Group && gvk.Kind == "ProviderConfig" {
@@ -93,87 +113,35 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 			}
 
 			objects <- obj
-			return nil
-		}))
+		})
 	}
 
-	p.exit(pool)
+	pool.StopAndWait()
 	close(objects)
-	p.exit(outWriter)
+	outWriter.StopAndWait()
 
-	module := ""
+	var moduleIndex []string
 
 	for ref, obj := range index {
 		switch {
-		case ref.Group == v1beta1.Group && ref.Kind == "ProviderConfig":
-			spec, err := p.handleProvider(p.Out, obj.(*v1beta1.ProviderConfig), index)
+		case ref.Group == v1beta1.Group && ref.Kind == "Workspace":
+			ws := obj.(*v1beta1.Workspace)
+			varsWorkspace, err := p.handleWorkspace(p.Out, ws, index)
 			if err != nil {
 				return err
 			}
 
-			module += spec
-			module += "\n"
-
-		case ref.Group == v1beta1.Group && ref.Kind == "Workspace":
-			if err := p.handleWorkspace(p.Out, obj.(*v1beta1.Workspace), index); err != nil {
-				return err
+			var vars []string
+			for k, v := range varsWorkspace {
+				vars = append(vars, fmt.Sprintf("%s=\"%s\"", k, v))
 			}
+
+			moduleIndex = append(moduleIndex, fmt.Sprintf("module \"%s\" {\n  source = \"./%s\"\n%s\n}", ws.Name, ws.Name, strings.Join(vars, "\n")))
 		}
 	}
 
-	return os.WriteFile(filepath.Join(p.Out, tfMain), []byte(module), 0640)
+	return os.WriteFile(filepath.Join(p.Out, "main.tf"), []byte(strings.Join(moduleIndex, "\n")), 0640)
 }
-
-func (p *Parser) exit(waiters ...worker.Waiter) {
-	for _, w := range waiters {
-		err := w.Wait()
-		if err != nil && !p.AllowFailure {
-			p.Logger.Error(err, "error occurred")
-			os.Exit(1)
-		}
-	}
-}
-
-/*
-
-func (p *Parser) handleResource(obj runtime.Object, gvk *schema.GroupVersionKind, out chan runtime.Object) error {
-	if gvk.Version == "v1beta1" && gvk.Group == "tf.upbound.io" && gvk.Kind == "ProviderConfig" {
-		out <- obj
-	}
-
-	return nil
-}
-*/
-/*
-func (p *Parser) getHelmRepositorySecret(ctx context.Context, repository *sourcev1beta2.HelmRepository, db map[ref]*resource.Resource) (*corev1.Secret, error) {
-	if repository.Spec.SecretRef == nil {
-		return nil, nil
-	}
-
-	lookupRef := ref{
-		GroupKind: schema.GroupKind{
-			Group: v1beta1.Group,
-			Kind:  "Workspace",
-		},
-		Name: repository.Spec.SecretRef.Name,
-	}
-
-	if secret, ok := db[lookupRef]; ok {
-		raw, err := secret.AsYAML()
-		if err != nil {
-			return nil, err
-		}
-
-		obj, _, err := h.opts.Decoder.Decode(raw, nil, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		return obj.(*corev1.Secret), nil
-	}
-
-	return nil, fmt.Errorf("no repository secret `%v` found for helmrepository %s/%s", lookupRef, repository.Namespace, repository.Name)
-}*/
 
 func (p *Parser) getProvider(name string, resources ResourceIndex) (*v1beta1.ProviderConfig, error) {
 	ref := ref{
@@ -188,38 +156,11 @@ func (p *Parser) getProvider(name string, resources ResourceIndex) (*v1beta1.Pro
 		return obj.(*v1beta1.ProviderConfig), nil
 	}
 
-	// Make git credentials available to inline and remote sources
-	/*for _, cd := range pc.Spec.Credentials {
-		if cd.Filename != gitCredentialsFilename {
-			continue
-		}
-		data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
-		if err != nil {
-			return nil, errors.Wrap(err, errGetCreds)
-		}
-		// NOTE(bobh66): Put the git credentials file in /tmp/tf/<UUID> so it doesn't get removed or overwritten
-		// by the remote module source case
-		gitCredDir := filepath.Clean(filepath.Join("/tmp", dir))
-		if err = os.MkdirAll(gitCredDir, 0700); err != nil {
-			return nil, errors.Wrap(err, errWriteGitCreds)
-		}
-
-		// NOTE(ytsarev): Make go-getter pick up .git-credentials, see /.gitconfig in the container image
-		err = os.Setenv("GIT_CRED_DIR", gitCredDir)
-		if err != nil {
-			return nil, errors.Wrap(err, errSetGitCredDir)
-		}
-		p := filepath.Clean(filepath.Join(gitCredDir, filepath.Base(cd.Filename)))
-		if err := os.WriteFile(p, data, 0600); err != nil {
-			return nil, errors.Wrap(err, errWriteGitCreds)
-		}
-	}*/
-
 	return nil, fmt.Errorf("no provider config `%s`", name)
 }
 
-func (p *Parser) handleProvider(tfDir string, pc *v1beta1.ProviderConfig, resources ResourceIndex) (string, error) {
-	var vars []string
+func (p *Parser) getProviderVars(pc *v1beta1.ProviderConfig, resources ResourceIndex) (map[string]string, error) {
+	vars := make(map[string]string)
 	for _, vf := range pc.Spec.Credentials {
 		switch vf.Source {
 		case v1.CredentialsSourceSecret:
@@ -235,35 +176,41 @@ func (p *Parser) handleProvider(tfDir string, pc *v1beta1.ProviderConfig, resour
 			if obj, ok := resources[ref]; ok {
 				secret := obj.(*corev1.Secret)
 				for k, v := range secret.StringData {
-					vars = append(vars, fmt.Sprintf("%s = \"%s\"", k, v))
+					vars[k] = v
 				}
 			} else {
-				return "", fmt.Errorf("could not find providerconfig secret: %#v", ref)
+				return vars, fmt.Errorf("could not find providerconfig secret: %#v", ref)
 			}
 		}
 	}
 
-	return fmt.Sprintf("module \"%s\" {\n  source = \"./%s\"\n%s\n}", pc.Name, pc.Name, strings.Join(vars, "\n")), nil
+	return vars, nil
 }
 
-func (p *Parser) handleWorkspace(tfDir string, ws *v1beta1.Workspace, resources ResourceIndex) error {
+func (p *Parser) handleWorkspace(tfDir string, ws *v1beta1.Workspace, resources ResourceIndex) (map[string]string, error) {
 	pc, err := p.getProvider(ws.GetProviderConfigReference().Name, resources)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	dir := filepath.Join(tfDir, pc.Name)
+	dir := filepath.Join(tfDir, ws.Name)
 	if err := os.MkdirAll(dir, 0700); resource.Ignore(os.IsExist, err) != nil {
-		return err
+		return nil, err
 	}
 
 	switch ws.Spec.ForProvider.Source {
 	case v1beta1.ModuleSourceRemote:
-		return fmt.Errorf("unsupported provider source: %s", v1beta1.ModuleSourceRemote)
+		return nil, fmt.Errorf("unsupported provider source: %s", v1beta1.ModuleSourceRemote)
 	case v1beta1.ModuleSourceInline:
-		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s.tf", ws.Name)), []byte(ws.Spec.ForProvider.Module), 0600); err != nil {
-			return err
+		if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(ws.Spec.ForProvider.Module), 0600); err != nil {
+			return nil, err
 		}
+	}
+
+	vars, err := p.getProviderVars(pc, resources)
+
+	if err != nil {
+		return nil, err
 	}
 
 	if len(ws.Spec.ForProvider.Entrypoint) > 0 {
@@ -272,76 +219,91 @@ func (p *Parser) handleWorkspace(tfDir string, ws *v1beta1.Workspace, resources 
 	}
 
 	if pc.Spec.Configuration != nil {
-		if err := os.WriteFile(filepath.Join(dir, tfConfig), []byte(*pc.Spec.Configuration), 0600); err != nil {
-			return err
+		if err := os.WriteFile(filepath.Join(dir, "crossplane-provider-config.tf"), []byte(*pc.Spec.Configuration), 0600); err != nil {
+			return nil, err
 		}
 	}
 
 	if pc.Spec.BackendFile != nil {
-		if err := os.WriteFile(filepath.Join(dir, tfBackendFile), []byte(*pc.Spec.BackendFile), 0600); err != nil {
-			return err
+		if err := os.WriteFile(filepath.Join(dir, "backend.tf"), []byte(*pc.Spec.BackendFile), 0600); err != nil {
+			return nil, err
 		}
 	}
 
-	if pc.Spec.PluginCache == nil {
-		pc.Spec.PluginCache = new(bool)
-		*pc.Spec.PluginCache = true
-	}
+	for _, env := range ws.Spec.ForProvider.Env {
+		varName, isTFEnv := strings.CutPrefix(env.Name, "TF_VAR_")
+		if !isTFEnv {
+			continue
+		}
 
-	/*envs := make([]string, len(ws.Spec.ForProvider.Env))
-	for idx, env := range ws.Spec.ForProvider.Env {
-		runtimeVal := env.Value
-		if runtimeVal == "" {
-			switch {
-			case env.ConfigMapKeyReference != nil:
-				cm := &corev1.ConfigMap{}
-				r := env.ConfigMapKeyReference
-				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
-				if err := c.kube.Get(ctx, nn, cm); err != nil {
-					return nil, errors.Wrap(err, errVarResolution)
-				}
-				runtimeVal, ok = cm.Data[r.Key]
-				if !ok {
-					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in ConfigMap %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
-				}
-			case env.SecretKeyReference != nil:
-				s := &corev1.Secret{}
-				r := env.SecretKeyReference
-				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
-				if err := c.kube.Get(ctx, nn, s); err != nil {
-					return nil, errors.Wrap(err, errVarResolution)
-				}
-				secretBytes, ok := s.Data[r.Key]
-				if !ok {
-					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in Secret %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
-				}
-				runtimeVal = string(secretBytes)
+		switch {
+		case env.Value != "":
+		case env.ConfigMapKeyReference != nil:
+			ref := ref{
+				GroupKind: schema.GroupKind{
+					Group: "",
+					Kind:  "ConfigMap",
+				},
+				Name:      env.SecretKeyReference.Name,
+				Namespace: env.SecretKeyReference.Namespace,
 			}
+
+			if obj, ok := resources[ref]; ok {
+				cm := obj.(*corev1.ConfigMap)
+				if cmValue, ok := cm.Data[env.SecretKeyReference.Key]; ok {
+					vars[varName] = cmValue
+				} else {
+					return nil, fmt.Errorf("could not find referenced key %s in configmap: %#v", env.SecretKeyReference.Key, ref)
+				}
+			} else {
+				return nil, fmt.Errorf("could not find referenced secret: %#v", ref)
+			}
+
+			if obj, ok := resources[ref]; ok {
+				cm := obj.(*corev1.ConfigMap)
+				for k, v := range cm.Data {
+					vars[k] = v
+				}
+			} else {
+				return nil, fmt.Errorf("could not find referenced configmap: %#v", ref)
+			}
+
+		case env.SecretKeyReference != nil:
+			ref := ref{
+				GroupKind: schema.GroupKind{
+					Group: "",
+					Kind:  "Secret",
+				},
+				Name:      env.SecretKeyReference.Name,
+				Namespace: env.SecretKeyReference.Namespace,
+			}
+
+			if obj, ok := resources[ref]; ok {
+				secret := obj.(*corev1.Secret)
+				if secretValue, ok := secret.StringData[env.SecretKeyReference.Key]; ok {
+					vars[varName] = secretValue
+				} else {
+					return nil, fmt.Errorf("could not find referenced key %s in secret: %#v", env.SecretKeyReference.Key, ref)
+				}
+			} else {
+				return nil, fmt.Errorf("could not find referenced secret: %#v", ref)
+			}
+
+		default:
+			return nil, errors.New("unsupported env mechanism")
 		}
-		envs[idx] = strings.Join([]string{env.Name, runtimeVal}, "=")
 	}
 
-	tf := c.terraform(dir, *pc.Spec.PluginCache, envs...)
-	if cr.Status.AtProvider.Checksum != "" {
-		checksum, err := tf.GenerateChecksum(ctx)
+	if len(vars) > 0 {
+		b, err := json.MarshalIndent(vars, "", " ")
 		if err != nil {
-			return nil, errors.Wrap(err, errChecksum)
+			return nil, err
 		}
-		if cr.Status.AtProvider.Checksum == checksum {
-			l.Debug("Checksums match - skip running terraform init")
-			return &external{tf: tf, kube: c.kube, logger: c.logger}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
+
+		if err := os.WriteFile(filepath.Join(dir, "terraform.tfvars.json"), b, 0600); err != nil {
+			return nil, err
 		}
-		l.Debug("Checksums don't match so run terraform init:", "old", cr.Status.AtProvider.Checksum, "new", checksum)
 	}
 
-	o := make([]terraform.InitOption, 0, len(ws.Spec.ForProvider.InitArgs))
-	if pc.Spec.BackendFile != nil {
-		o = append(o, terraform.WithInitArgs([]string{"-backend-config=" + filepath.Join(dir, tfBackendFile)}))
-	}
-	o = append(o, terraform.WithInitArgs(ws.Spec.ForProvider.InitArgs))
-	if err := tf.Init(ctx, o...); err != nil {
-		return nil, errors.Wrap(err, errInit)
-	}
-	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)*/
-	return nil
+	return vars, nil
 }
