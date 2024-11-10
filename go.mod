@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/alitto/pond v1.9.2
-	github.com/crossplane/crossplane-runtime v1.17.0
+	github.com/crossplane/crossplane-runtime v1.18.0
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
 	github.com/sethvargo/go-envconfig v1.1.0
