@@ -1,6 +1,8 @@
 module github.com/doodlescheduling/tfxunpack
 
-go 1.22.0
+go 1.22.7
+
+toolchain go1.23.4
 
 require (
 	github.com/alitto/pond v1.9.2
@@ -9,7 +11,7 @@ require (
 	github.com/go-logr/zapr v1.3.0
 	github.com/sethvargo/go-envconfig v1.1.0
 	github.com/spf13/pflag v1.0.5
-	github.com/upbound/provider-terraform v0.19.0
+	github.com/upbound/provider-terraform v0.19.2
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.31.3
 	k8s.io/apimachinery v0.31.4
@@ -47,12 +49,12 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.21.0 // indirect
-	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/term v0.24.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
 	golang.org/x/tools v0.25.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
