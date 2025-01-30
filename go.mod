@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
 	github.com/sethvargo/go-envconfig v1.1.0
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	github.com/upbound/provider-terraform v0.19.0
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.31.3
