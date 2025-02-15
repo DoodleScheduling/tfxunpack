@@ -7,7 +7,7 @@ require (
 	github.com/crossplane/crossplane-runtime v1.19.0
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
-	github.com/sethvargo/go-envconfig v1.1.0
+	github.com/sethvargo/go-envconfig v1.1.1
 	github.com/spf13/pflag v1.0.6
 	github.com/upbound/provider-terraform v0.19.0
 	go.uber.org/zap v1.27.0
