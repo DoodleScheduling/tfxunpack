@@ -3,7 +3,7 @@ module github.com/doodlescheduling/tfxunpack
 go 1.22.0
 
 require (
-	github.com/alitto/pond v1.9.2
+	github.com/alitto/pond/v2 v2.2.0
 	github.com/crossplane/crossplane-runtime v1.19.0
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
