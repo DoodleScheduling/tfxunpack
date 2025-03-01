@@ -1,6 +1,8 @@
 module github.com/doodlescheduling/tfxunpack
 
-go 1.22.0
+go 1.22.12
+
+toolchain go1.24.0
 
 require (
 	github.com/alitto/pond v1.9.2
@@ -9,7 +11,7 @@ require (
 	github.com/go-logr/zapr v1.3.0
 	github.com/sethvargo/go-envconfig v1.1.1
 	github.com/spf13/pflag v1.0.6
-	github.com/upbound/provider-terraform v0.19.0
+	github.com/upbound/provider-terraform v0.19.4
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.31.3
 	k8s.io/apimachinery v0.31.4
