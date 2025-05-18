@@ -11,8 +11,8 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/upbound/provider-terraform v0.20.0
 	go.uber.org/zap v1.27.0
-	k8s.io/api v0.31.3
-	k8s.io/apimachinery v0.31.4
+	k8s.io/api v0.33.1
+	k8s.io/apimachinery v0.33.1
 )
 
 require (
