@@ -59,7 +59,6 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 
 				if err := index.Push(obj); err != nil {
 					errs <- err
-					return
 				}
 			}
 		}
@@ -82,6 +81,7 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 			lastErr = err
 
 			if p.FailFast {
+				pool.Stop()
 				cancel()
 			}
 		}
@@ -91,6 +91,7 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 
 	for {
 		resourceYAML, err := multidocReader.Read()
+
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -104,6 +105,7 @@ func (p *Parser) Run(ctx context.Context, in io.Reader) error {
 				resourceYAML,
 				nil,
 				nil)
+
 			if err != nil {
 				return
 			}
