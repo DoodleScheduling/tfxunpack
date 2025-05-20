@@ -5,20 +5,20 @@
 class Tfxunpack < Formula
   desc "Build kustomize overlays with flux2 HelmRelease support"
   homepage "https://github.com/DoodleScheduling/tfxunpack"
-  version "0.1.0"
+  version "0.1.1"
 
   on_macos do
-    on_intel do
-      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.0/tfxunpack_0.1.0_darwin_amd64.tar.gz"
-      sha256 "0d2eb6f8e75f2fe4319aba2b1b8193332a3c0d4c14c07717144faaef5604f639"
+    if Hardware::CPU.intel?
+      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.1/tfxunpack_0.1.1_darwin_amd64.tar.gz"
+      sha256 "8a64b96c837a2b36b980d355a635ee2e1421f29ebb4d5f10c0f9b90325e1bc32"
 
       def install
         bin.install "tfxunpack"
       end
     end
-    on_arm do
-      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.0/tfxunpack_0.1.0_darwin_arm64.tar.gz"
-      sha256 "b79b8d703eb38ae998dbeea20db4ec5703947fe5f82a451d74c8d78fa4cdef08"
+    if Hardware::CPU.arm?
+      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.1/tfxunpack_0.1.1_darwin_arm64.tar.gz"
+      sha256 "df6154eae44d256371a665e1e53c0841adec10e21127199fe61a8ab22d6a278a"
 
       def install
         bin.install "tfxunpack"
@@ -27,24 +27,18 @@ class Tfxunpack < Formula
   end
 
   on_linux do
-    on_intel do
-      if Hardware::CPU.is_64_bit?
-        url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.0/tfxunpack_0.1.0_linux_amd64.tar.gz"
-        sha256 "f3ba46cc2e61ad031224ac3ca69f92a7ba512922ec43dde4004b4beb7d8458a6"
-
-        def install
-          bin.install "tfxunpack"
-        end
+    if Hardware::CPU.intel? and Hardware::CPU.is_64_bit?
+      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.1/tfxunpack_0.1.1_linux_amd64.tar.gz"
+      sha256 "63c52751ae3a22c02fb0fa84c1210b3e334eb1b3287173f69c1bcfbb1d3325a8"
+      def install
+        bin.install "tfxunpack"
       end
     end
-    on_arm do
-      if Hardware::CPU.is_64_bit?
-        url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.0/tfxunpack_0.1.0_linux_arm64.tar.gz"
-        sha256 "d2a8dfa7621da6c91d1b4617070de7b46e5d6f5e554cfe0a961198bfce1e51b7"
-
-        def install
-          bin.install "tfxunpack"
-        end
+    if Hardware::CPU.arm? and Hardware::CPU.is_64_bit?
+      url "https://github.com/DoodleScheduling/tfxunpack/releases/download/v0.1.1/tfxunpack_0.1.1_linux_arm64.tar.gz"
+      sha256 "98e988feb05a1086194f99fb378b06ce9f4becf513ca40a51d5f17ef901a4e59"
+      def install
+        bin.install "tfxunpack"
       end
     end
   end
