@@ -27,7 +27,7 @@ func (r ResourceIndex) Push(obj runtime.Object) error {
 	}
 
 	if _, ok := r[ref]; ok {
-		return fmt.Errorf("object already exists: %v", ref)
+		return fmt.Errorf("object already exists: %#v", ref)
 	}
 
 	r[ref] = obj

@@ -14,7 +14,7 @@ builds:
 archives:
 - id: tfxunpack
   name_template: "tfxunpack_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  builds:
+  ids:
   - tfxunpack
 
 checksum:
