@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/alitto/pond"
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/go-logr/logr"
 	"github.com/upbound/provider-terraform/apis/v1beta1"
 	corev1 "k8s.io/api/core/v1"
